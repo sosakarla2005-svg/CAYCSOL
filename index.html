@@ -236,4 +236,44 @@ function printUniredReceipt(){let el=document.getElementById('unired-print-copy'
 function downloadUniredReceipt(){const html='<!doctype html><html lang="es"><meta charset="utf-8"><title>Recibo UNIRED</title><style>body{font:15px Arial,sans-serif;max-width:680px;margin:30px auto;color:#163e2b}.unired-receipt{border:2px solid #087d49;border-radius:15px;padding:25px}.unired-row{display:flex;justify-content:space-between;border-bottom:1px solid #ddd;padding:10px 0}.unired-big{font-size:30px;font-weight:bold;color:#087d49}.unired-badge{background:#fff0c3;padding:7px;font-size:11px}.unired-note{font-size:12px;color:#777}</style>'+uniredReceiptHtml+'</html>';const url=URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='recibo-unired-demostracion.html';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)}
 </script>
 
-</body></html>
+<style id="landing-chatbot-style">
+#landing-help-button{position:fixed;right:22px;bottom:22px;z-index:9999;border:0;border-radius:30px;padding:15px 19px;background:#009e57;color:#fff;box-shadow:0 6px 25px #003b2459;font:bold 15px Arial;cursor:pointer}
+#landing-help-panel{position:fixed;right:20px;bottom:85px;z-index:10000;width:min(385px,calc(100vw - 24px));height:min(540px,calc(100dvh - 105px));background:#fff;border-radius:19px;box-shadow:0 10px 50px #002d1e65;display:none;flex-direction:column;overflow:hidden;border:1px solid #cfe7d8;font:14px Arial;color:#16442e}
+#landing-help-panel.open{display:flex}
+#landing-help-head{background:#087b46;color:#fff;padding:15px;display:flex;justify-content:space-between;align-items:center}
+#landing-help-head button{background:transparent;color:#fff;font-size:25px;border:0;cursor:pointer}
+#landing-help-log{flex:1;overflow-y:auto;padding:14px;background:#f4faf6}
+.landing-help-message{padding:10px 12px;border-radius:13px;background:#fff;margin-bottom:10px;line-height:1.55;white-space:pre-line;border:1px solid #dcece1}
+.landing-help-message.mine{background:#dff5e6;margin-left:30px}
+#landing-help-quick{display:flex;gap:5px;overflow-x:auto;padding:9px;background:white}
+#landing-help-quick button{border:1px solid #c1dfcb;border-radius:20px;padding:8px;white-space:nowrap;background:#f0f9f3;color:#076c3c;font-size:11px;cursor:pointer}
+#landing-help-form{display:flex;padding:10px;gap:6px}
+#landing-help-input{min-width:0;flex:1;border:1px solid #bed9c8;border-radius:9px;padding:11px;font-size:16px}
+#landing-help-form button{background:#008d4f;color:#fff;border:0;border-radius:9px;padding:10px;cursor:pointer}
+@media(max-width:500px){#landing-help-panel{right:8px;bottom:76px;width:calc(100vw - 16px)}#landing-help-button{right:12px;bottom:12px}}
+</style>
+<div id="landing-chatbot" aria-label="Asistente virtual de la página informativa">
+<button type="button" id="landing-help-button" onclick="landingHelpToggle()">💬 ¿Necesita ayuda?</button>
+<div id="landing-help-panel" role="dialog" aria-label="Chatbot de CAYCSOL">
+<div id="landing-help-head"><div><b>Asistente virtual CAYCSOL</b><br><small>Información y orientación</small></div><button type="button" onclick="landingHelpToggle(false)" aria-label="Cerrar">×</button></div>
+<div id="landing-help-log" aria-live="polite"><div class="landing-help-message">¡Bienvenido! 💚 Puedo explicarle los productos y servicios, cómo utilizar la banca digital y cómo contactar a un asesor. ¿En qué puedo ayudarle?</div></div>
+<div id="landing-help-quick"><button onclick="landingHelpAsk('Beneficios de afiliarse')">Beneficios</button><button onclick="landingHelpAsk('Cómo usar la aplicación')">Usar la aplicación</button><button onclick="landingHelpAsk('UNIRED')">UNIRED</button><button onclick="landingHelpAsk('Hablar con asesor')">Asesor</button></div>
+<form id="landing-help-form" onsubmit="event.preventDefault();landingHelpAsk(document.getElementById('landing-help-input').value);document.getElementById('landing-help-input').value=''"><input id="landing-help-input" placeholder="Escriba su pregunta..." aria-label="Escriba su pregunta"><button type="submit">Enviar</button></form>
+</div></div>
+<script id="landing-chatbot-script">
+(function(){let waiting=false;function log(t,mine){const e=document.createElement('div');e.className='landing-help-message'+(mine?' mine':'');e.textContent=t;const l=document.getElementById('landing-help-log');l.appendChild(e);l.scrollTop=l.scrollHeight}
+window.landingHelpToggle=function(force){const p=document.getElementById('landing-help-panel');p.classList.toggle('open',typeof force==='boolean'?force:!p.classList.contains('open'))};
+window.landingHelpAsk=function(q){q=String(q).trim();if(!q)return;log(q,true);const s=q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');let a='Puedo orientarle sobre afiliación, ahorro, préstamos, transferencias, UNIRED, estados de cuenta y atención con asesores. ¿Qué desea conocer?';
+if(waiting){waiting=false;a='Gracias. Para '+q+' aún no se ha registrado un número de WhatsApp de asesor confirmado. Cuando la cooperativa facilite el contacto correspondiente, podrá enlazarse directamente desde aquí.'}
+else if(/asesor|whatsapp|contacto|telefono|numero|filial/.test(s)){waiting=true;a='¡Con gusto! ¿De qué ciudad o municipio nos escribe? Así podremos dirigirlo al asesor correspondiente cuando tengamos su número confirmado.'}
+else if(/beneficio|afili|socio|requisito/.test(s))a='La cooperativa ofrece alternativas de ahorro, aportaciones, financiamiento y otros servicios para sus afiliados. Para requisitos, tasas y beneficios vigentes, consulte a un asesor autorizado.';
+else if(/unired/.test(s))a='En Banca digital, ingrese a Transferencias UNIRED, elija Transferencia o Pago de préstamos, seleccione la cooperativa de destino, complete los datos y revise el resumen. En esta página las operaciones son simuladas.';
+else if(/saldo|cuenta|ahorro|aportacion/.test(s))a='En Banca digital, ingrese al simulador, abra Inicio o Mis cuentas y presione Ver saldo. Las cantidades mostradas son de demostración.';
+else if(/prestamo|credito|cuota|pago/.test(s))a='En Banca digital, abra Pagos para revisar su préstamo de demostración y seleccionar un abono. Para pagar un préstamo de otra cooperativa, use UNIRED.';
+else if(/transfer|ach/.test(s))a='En Banca digital, abra Transferir y seleccione el tipo de transferencia: cuentas propias, terceros, ACH o UNIRED. Complete los datos y confirme la simulación.';
+else if(/estado|movimiento|comprobante|historial/.test(s))a='En Banca digital, vaya a Gestiones y Estados de cuenta para consultar el historial simulado y sus comprobantes.';
+else if(/aplicacion|pagina|web|usar|ingresar|banca digital/.test(s))a='Desde esta página pulse Banca digital, inicie sesión en el simulador y elija el servicio que necesite. Puedo guiarle paso a paso sobre saldos, transferencias, UNIRED, préstamos y estados de cuenta.';
+log(a,false)};
+function visibility(){const landing=document.getElementById('landing');const widget=document.getElementById('landing-chatbot');if(!landing||!widget)return;const visible=getComputedStyle(landing).display!=='none'&&!landing.classList.contains('hidden');widget.style.display=visible?'block':'none';if(!visible)document.getElementById('landing-help-panel').classList.remove('open')}
+const landing=document.getElementById('landing');if(landing)new MutationObserver(visibility).observe(landing,{attributes:true,attributeFilter:['class','style']});visibility();})();
+</script></body></html>
