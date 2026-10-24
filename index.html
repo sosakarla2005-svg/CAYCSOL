@@ -255,25 +255,82 @@ function downloadUniredReceipt(){const html='<!doctype html><html lang="es"><met
 <div id="landing-chatbot" aria-label="Asistente virtual de la página informativa">
 <button type="button" id="landing-help-button" onclick="landingHelpToggle()">💬 ¿Necesita ayuda?</button>
 <div id="landing-help-panel" role="dialog" aria-label="Chatbot de CAYCSOL">
-<div id="landing-help-head"><div><b>Asistente virtual CAYCSOL</b><br><small>Información y orientación</small></div><button type="button" onclick="landingHelpToggle(false)" aria-label="Cerrar">×</button></div>
-<div id="landing-help-log" aria-live="polite"><div class="landing-help-message">¡Bienvenido! 💚 Puedo explicarle los productos y servicios, cómo utilizar la banca digital y cómo contactar a un asesor. ¿En qué puedo ayudarle?</div></div>
+<div id="landing-help-head"><div><b>Asistente virtual CAYCSOL</b><br><small>Soporte técnico paso a paso · Demo</small></div><button type="button" onclick="landingHelpToggle(false)" aria-label="Cerrar">×</button></div>
+<div id="landing-help-log" aria-live="polite"><div class="landing-help-message">¡Bienvenido! 💚 Soy el asistente de soporte de CAYCSOL. Puedo guiarle paso a paso si olvidó su contraseña, tiene el usuario bloqueado, no recibe códigos o la aplicación falla. No comparta datos confidenciales.</div></div>
 <div id="landing-help-quick"><button onclick="landingHelpAsk('Beneficios de afiliarse')">Beneficios</button><button onclick="landingHelpAsk('Cómo usar la aplicación')">Usar la aplicación</button><button onclick="landingHelpAsk('UNIRED')">UNIRED</button><button onclick="landingHelpAsk('Hablar con asesor')">Asesor</button></div>
 <form id="landing-help-form" onsubmit="event.preventDefault();landingHelpAsk(document.getElementById('landing-help-input').value);document.getElementById('landing-help-input').value=''"><input id="landing-help-input" placeholder="Escriba su pregunta..." aria-label="Escriba su pregunta"><button type="submit">Enviar</button></form>
 </div></div>
 <script id="landing-chatbot-script">
-(function(){let waiting=false;function log(t,mine){const e=document.createElement('div');e.className='landing-help-message'+(mine?' mine':'');e.textContent=t;const l=document.getElementById('landing-help-log');l.appendChild(e);l.scrollTop=l.scrollHeight}
+(function(){
+const normalize=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const flows={
+password:{title:'Recuperar contraseña (demostración)',steps:[
+['¿Puede abrir la pantalla de inicio de sesión de CAYCSOL Móvil?',['Sí, puedo','No puedo']],
+['En el simulador, busque la opción «Olvidé mi contraseña». ¿La encuentra?',['Sí, aparece','No aparece']],
+['Si aparece, selecciónela y siga las indicaciones de recuperación de la pantalla. Nunca escriba aquí contraseñas ni códigos. ¿Pudo continuar?',['Sí, continué','No pude']],
+['Si el sistema solicita una verificación, complétela solamente en la pantalla oficial, nunca en este chat. ¿Terminó el proceso?',['Sí, terminé','Sigo con problemas']]
+]},
+blocked:{title:'Usuario bloqueado',steps:[
+['¿Qué mensaje aparece al ingresar?',['Usuario bloqueado','Contraseña incorrecta','Otro mensaje']],
+['Evite seguir intentando contraseñas. Revise si la pantalla de acceso ofrece «Desbloquear usuario» o «Recuperar acceso». ¿Existe esa opción?',['Sí, la veo','No aparece']],
+['Si existe, abra esa opción y complete la verificación únicamente dentro de la aplicación. Este chat no desbloquea cuentas reales. ¿Le permitió avanzar?',['Sí, avancé','No me permitió']],
+['Cierre y vuelva a abrir la aplicación. Intente ingresar solo si el sistema confirmó el desbloqueo. ¿Ya puede acceder?',['Sí, ya ingresé','Sigue bloqueado']]
+]},
+code:{title:'Código de verificación',steps:[
+['¿Cómo espera recibir el código?',['SMS','Correo electrónico','No lo sé']],
+['Compruebe que tiene señal o internet. Si es correo, revise también Spam/No deseados. ¿Encontró el código?',['Sí, lo encontré','Todavía no']],
+['Espere el tiempo indicado en pantalla y use «Reenviar código» solo una vez, si está disponible. Use únicamente el código más reciente y no lo comparta aquí. ¿Llegó?',['Sí, llegó','No llegó']],
+['Compruebe que el teléfono tenga fecha y hora automáticas y que no esté en modo avión. Regrese a la pantalla de verificación. ¿Se resolvió?',['Sí, resuelto','No, sigue igual']]
+]},
+loading:{title:'La aplicación no carga',steps:[
+['¿Qué sucede cuando intenta abrirla?',['Pantalla en blanco','Se queda cargando','Se cierra sola']],
+['Abra otra página de internet para comprobar la conexión. Si falla, cambie entre Wi-Fi y datos móviles. ¿Ahora carga?',['Sí, funciona','Sigue sin cargar']],
+['Cierre completamente CAYCSOL Móvil y ábrala de nuevo. No borre datos ni desinstale todavía. ¿Se solucionó?',['Sí, funciona','Sigue fallando']],
+['Reinicie el celular, revise si hay una actualización oficial de la aplicación y asegúrese de tener espacio disponible. ¿Ahora funciona?',['Sí, funciona','No funciona']]
+]},
+other:{title:'Otro inconveniente',steps:[
+['¿Con qué servicio necesita ayuda?',['Inicio de sesión','Transferencias / ACH','UNIRED','Préstamos','Otro']],
+['Revise el mensaje que aparece y confirme que tiene conexión. No repita operaciones financieras si desconoce su estado. ¿El problema se relaciona con un acceso bloqueado o con un error de carga?',['Acceso bloqueado','Error de carga','Ninguno']],
+['Cierre y vuelva a abrir la sección. Si la operación parece pendiente, consulte primero su historial antes de intentar de nuevo. ¿Se solucionó?',['Sí, resuelto','No, continúa']]
+]}
+};
+let flow=null,step=0,answers=[],awaitingResult=false;
+function log(t,mine){const e=document.createElement('div');e.className='landing-help-message'+(mine?' mine':'');e.textContent=t;const l=document.getElementById('landing-help-log');l.appendChild(e);l.scrollTop=l.scrollHeight}
+function options(arr){const box=document.getElementById('landing-help-quick');box.replaceChildren();arr.forEach(t=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.addEventListener('click',()=>window.landingHelpAsk(t));box.appendChild(b)})}
+const menu=()=>options(['Olvidé mi contraseña','Usuario bloqueado','No recibo el código','La app no carga','Otro problema','Asesor']);
+function wa(){const a=document.createElement('a');a.href='https://wa.me/50432283197?text='+encodeURIComponent('Hola, necesito soporte técnico de CAYCSOL Móvil. El asistente me guió, pero el problema continúa.');a.target='_blank';a.rel='noopener noreferrer';a.textContent='Contactar soporte Juticalpa por WhatsApp';a.style.cssText='display:block;margin:9px 12px 15px;padding:13px;border-radius:10px;background:#008d4f;color:white;text-decoration:none;font-weight:bold;text-align:center';document.getElementById('landing-help-log').appendChild(a)}
+function askStep(){const item=flows[flow].steps[step];log(item[0],false);options([...item[1],'Volver al menú'])}
+function finish(){awaitingResult=true;log('¿El problema quedó resuelto?',false);options(['Sí, solucionado','No, necesito más ayuda','Volver al menú'])}
+function start(k){flow=k;step=0;answers=[];awaitingResult=false;log('Vamos a revisar: '+flows[k].title+'. Le guiaré paso a paso. Esta es una demostración académica: no escriba aquí contraseñas, PIN, códigos de verificación ni datos personales.',false);askStep()}
 window.landingHelpToggle=function(force){const p=document.getElementById('landing-help-panel');p.classList.toggle('open',typeof force==='boolean'?force:!p.classList.contains('open'))};
-window.landingHelpAsk=function(q){q=String(q).trim();if(!q)return;log(q,true);const s=q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');let a='Puedo orientarle sobre afiliación, ahorro, préstamos, transferencias, UNIRED, estados de cuenta y atención con asesores. ¿Qué desea conocer?';
-if(waiting){waiting=false;if(/juticalpa/i.test(s)){a='¡Perfecto! Para Juticalpa, puede comunicarse con nuestro contacto de atención al número 3228-3197 por WhatsApp. Presione el enlace que aparece a continuación para iniciar la conversación.';log(a,false);const link=document.createElement('a');link.href='https://wa.me/50432283197?text='+encodeURIComponent('Hola, escribo desde Juticalpa. Necesito orientación sobre los servicios de CAYCSOL.');link.target='_blank';link.rel='noopener noreferrer';link.textContent='🟢 Abrir WhatsApp — Juticalpa (3228-3197)';link.style.cssText='display:block;margin:9px 12px 15px;padding:13px;border-radius:10px;background:#008d4f;color:white;text-decoration:none;font-weight:bold;text-align:center';document.getElementById('landing-help-log').appendChild(link);link.scrollIntoView({block:'nearest'});return}else{a='Gracias. Por ahora solo tenemos configurado el contacto de Juticalpa (3228-3197). Para otras localidades, el número del asesor está pendiente de confirmación.'}}
-else if(/asesor|whatsapp|contacto|telefono|numero|filial/.test(s)){waiting=true;a='¡Con gusto! ¿De qué ciudad o municipio nos escribe? Así podremos dirigirlo al asesor correspondiente cuando tengamos su número confirmado.'}
-else if(/beneficio|afili|socio|requisito/.test(s))a='La cooperativa ofrece alternativas de ahorro, aportaciones, financiamiento y otros servicios para sus afiliados. Para requisitos, tasas y beneficios vigentes, consulte a un asesor autorizado.';
-else if(/unired/.test(s))a='En Banca digital, ingrese a Transferencias UNIRED, elija Transferencia o Pago de préstamos, seleccione la cooperativa de destino, complete los datos y revise el resumen. En esta página las operaciones son simuladas.';
-else if(/saldo|cuenta|ahorro|aportacion/.test(s))a='En Banca digital, ingrese al simulador, abra Inicio o Mis cuentas y presione Ver saldo. Las cantidades mostradas son de demostración.';
-else if(/prestamo|credito|cuota|pago/.test(s))a='En Banca digital, abra Pagos para revisar su préstamo de demostración y seleccionar un abono. Para pagar un préstamo de otra cooperativa, use UNIRED.';
-else if(/transfer|ach/.test(s))a='En Banca digital, abra Transferir y seleccione el tipo de transferencia: cuentas propias, terceros, ACH o UNIRED. Complete los datos y confirme la simulación.';
-else if(/estado|movimiento|comprobante|historial/.test(s))a='En Banca digital, vaya a Gestiones y Estados de cuenta para consultar el historial simulado y sus comprobantes.';
-else if(/aplicacion|pagina|web|usar|ingresar|banca digital/.test(s))a='Desde esta página pulse Banca digital, inicie sesión en el simulador y elija el servicio que necesite. Puedo guiarle paso a paso sobre saldos, transferencias, UNIRED, préstamos y estados de cuenta.';
-log(a,false)};
+window.landingHelpAsk=function(raw){const q=String(raw||'').trim();if(!q)return;log(q,true);const s=normalize(q);
+if(/volver al menu|menu principal|reiniciar chat/.test(s)){flow=null;awaitingResult=false;log('¿En qué más puedo ayudarle?',false);menu();return}
+if(/si, solucionado|si, resuelto|si, funciona|si, ya ingrese/.test(s)&&flow){flow=null;awaitingResult=false;log('¡Excelente! Me alegra que haya podido continuar. ¿Necesita ayuda con algo más?',false);menu();return}
+if(/no, necesito mas ayuda/.test(s)){flow=null;awaitingResult=false;log('Ya realizamos las comprobaciones básicas. Para proteger su cuenta, no intentaré cambiar credenciales desde este chat. Si desea atención adicional, puede usar el contacto de Juticalpa.',false);wa();menu();return}
+if(/asesor|whatsapp|contacto/.test(s)){flow=null;log('Para Juticalpa, el contacto configurado es 3228-3197. El asistente seguirá disponible para orientarle antes de contactar.',false);wa();menu();return}
+if(flow){
+if(awaitingResult){log('¿Desea que le muestre las opciones de asistencia o volver al menú?',false);options(['No, necesito más ayuda','Volver al menú']);return}
+answers.push(q);
+const yes= /^(si|sí)(,|$)/.test(s);
+const success=/ya ingrese|funciona|resuelto|solucionado|encontre el codigo|llego/.test(s);
+if(yes&&success){finish();return}
+const negative=/no aparece|no pude|no me permitio|sigue bloqueado|sigue fallando|no funciona|sigue sin cargar|no llego|todavia no|no, continua/.test(s);
+step++;
+if(step<flows[flow].steps.length){if(negative)log('Entiendo. Probemos la siguiente comprobación.',false);askStep()}else finish();
+return}
+if(/olvide|contrasena|clave|vencid/.test(s)){start('password');return}
+if(/bloquead|desbloque/.test(s)){start('blocked');return}
+if(/codigo|verificacion|sms|token/.test(s)){start('code');return}
+if(/no carga|no abre|pantalla en blanco|se cierra|cargando|error de conexion/.test(s)){start('loading');return}
+if(/otro problema|otro inconveniente|problema diferente/.test(s)){start('other');return}
+
+if(/unired/.test(s))log('En la banca digital de demostración, abra UNIRED, seleccione el tipo de operación y revise cuidadosamente el resumen antes de confirmar. Las operaciones son simuladas.',false);
+else if(/transfer|ach/.test(s))log('Abra Transferir, seleccione ACH y complete los campos de la demostración. Si una transferencia real parece pendiente, no la repita antes de revisar su estado.',false);
+else if(/prestamo|credito|pago/.test(s))log('En la banca digital, abra Pagos o Préstamos para consultar las opciones simuladas.',false);
+else if(/beneficio|afili|ahorro/.test(s))log('CAYCSOL ofrece productos de ahorro y financiamiento. Para condiciones vigentes, consulte la información oficial de la cooperativa.',false);
+else log('Puedo ayudarle paso a paso con contraseña olvidada, usuario bloqueado, códigos que no llegan, aplicación que no carga y otros problemas. Elija una opción.',false);
+menu()};
 function visibility(){const landing=document.getElementById('landing');const widget=document.getElementById('landing-chatbot');if(!landing||!widget)return;const visible=getComputedStyle(landing).display!=='none'&&!landing.classList.contains('hidden');widget.style.display=visible?'block':'none';if(!visible)document.getElementById('landing-help-panel').classList.remove('open')}
-const landing=document.getElementById('landing');if(landing)new MutationObserver(visibility).observe(landing,{attributes:true,attributeFilter:['class','style']});visibility();})();
+const landing=document.getElementById('landing');if(landing)new MutationObserver(visibility).observe(landing,{attributes:true,attributeFilter:['class','style']});visibility();menu();
+})();
 </script></body></html>
