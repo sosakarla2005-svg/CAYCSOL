@@ -1,0 +1,98 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prueba chatbot CAYCSOL</title><style>body{font-family:Arial;background:#f0f6f1;color:#16442e;margin:0;padding:20px}.box{max-width:650px;margin:30px auto;background:#fff;border-radius:18px;padding:24px}h1{font-size:25px}p{line-height:1.6}</style></head><body><div id="landing"><div class="box"><h1>Prueba del asistente CAYCSOL</h1><p>Pulse «¿Necesita ayuda?» para probar el soporte técnico.</p><p>Demostración académica. No introduzca datos personales, contraseñas ni códigos.</p></div></div><style id="landing-chatbot-style">
+#landing-help-button{position:fixed;right:22px;bottom:22px;z-index:9999;border:0;border-radius:30px;padding:15px 19px;background:#009e57;color:#fff;box-shadow:0 6px 25px #003b2459;font:bold 15px Arial;cursor:pointer}
+#landing-help-panel{position:fixed;right:20px;bottom:85px;z-index:10000;width:min(385px,calc(100vw - 24px));height:min(540px,calc(100dvh - 105px));background:#fff;border-radius:19px;box-shadow:0 10px 50px #002d1e65;display:none;flex-direction:column;overflow:hidden;border:1px solid #cfe7d8;font:14px Arial;color:#16442e}
+#landing-help-panel.open{display:flex}
+#landing-help-head{background:#087b46;color:#fff;padding:15px;display:flex;justify-content:space-between;align-items:center}
+#landing-help-head button{background:transparent;color:#fff;font-size:25px;border:0;cursor:pointer}
+#landing-help-log{flex:1;overflow-y:auto;padding:14px;background:#f4faf6}
+.landing-help-message{padding:10px 12px;border-radius:13px;background:#fff;margin-bottom:10px;line-height:1.55;white-space:pre-line;border:1px solid #dcece1}
+.landing-help-message.mine{background:#dff5e6;margin-left:30px}
+#landing-help-quick{display:flex;gap:5px;overflow-x:auto;padding:9px;background:white}
+#landing-help-quick button{border:1px solid #c1dfcb;border-radius:20px;padding:8px;white-space:nowrap;background:#f0f9f3;color:#076c3c;font-size:11px;cursor:pointer}
+#landing-help-form{display:flex;padding:10px;gap:6px}
+#landing-help-input{min-width:0;flex:1;border:1px solid #bed9c8;border-radius:9px;padding:11px;font-size:16px}
+#landing-help-form button{background:#008d4f;color:#fff;border:0;border-radius:9px;padding:10px;cursor:pointer}
+@media(max-width:500px){#landing-help-panel{right:8px;bottom:76px;width:calc(100vw - 16px)}#landing-help-button{right:12px;bottom:12px}}
+</style>
+<div id="landing-chatbot" aria-label="Asistente virtual de la página informativa">
+<button type="button" id="landing-help-button" onclick="landingHelpToggle()">💬 ¿Necesita ayuda?</button>
+<div id="landing-help-panel" role="dialog" aria-label="Chatbot de CAYCSOL">
+<div id="landing-help-head"><div><b>Asistente virtual CAYCSOL</b><br><small>Soporte técnico paso a paso · Demo</small></div><button type="button" onclick="landingHelpToggle(false)" aria-label="Cerrar">×</button></div>
+<div id="landing-help-log" aria-live="polite"><div class="landing-help-message">¡Bienvenido! 💚 Soy el asistente de soporte de CAYCSOL. Puedo guiarle paso a paso si olvidó su contraseña, tiene el usuario bloqueado, no recibe códigos o la aplicación falla. No comparta datos confidenciales.</div></div>
+<div id="landing-help-quick"><button onclick="landingHelpAsk('Beneficios de afiliarse')">Beneficios</button><button onclick="landingHelpAsk('Cómo usar la aplicación')">Usar la aplicación</button><button onclick="landingHelpAsk('UNIRED')">UNIRED</button><button onclick="landingHelpAsk('Hablar con asesor')">Asesor</button></div>
+<form id="landing-help-form" onsubmit="event.preventDefault();landingHelpAsk(document.getElementById('landing-help-input').value);document.getElementById('landing-help-input').value=''"><input id="landing-help-input" placeholder="Escriba su pregunta..." aria-label="Escriba su pregunta"><button type="submit">Enviar</button></form>
+</div></div>
+<script id="landing-chatbot-script">
+(function(){
+const normalize=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const flows={
+password:{title:'Recuperar contraseña (demostración)',steps:[
+['¿Puede abrir la pantalla de inicio de sesión de CAYCSOL Móvil?',['Sí, puedo','No puedo']],
+['En el simulador, busque la opción «Olvidé mi contraseña». ¿La encuentra?',['Sí, aparece','No aparece']],
+['Si aparece, selecciónela y siga las indicaciones de recuperación de la pantalla. Nunca escriba aquí contraseñas ni códigos. ¿Pudo continuar?',['Sí, continué','No pude']],
+['Si el sistema solicita una verificación, complétela solamente en la pantalla oficial, nunca en este chat. ¿Terminó el proceso?',['Sí, terminé','Sigo con problemas']]
+]},
+blocked:{title:'Usuario bloqueado',steps:[
+['¿Qué mensaje aparece al ingresar?',['Usuario bloqueado','Contraseña incorrecta','Otro mensaje']],
+['Evite seguir intentando contraseñas. Revise si la pantalla de acceso ofrece «Desbloquear usuario» o «Recuperar acceso». ¿Existe esa opción?',['Sí, la veo','No aparece']],
+['Si existe, abra esa opción y complete la verificación únicamente dentro de la aplicación. Este chat no desbloquea cuentas reales. ¿Le permitió avanzar?',['Sí, avancé','No me permitió']],
+['Cierre y vuelva a abrir la aplicación. Intente ingresar solo si el sistema confirmó el desbloqueo. ¿Ya puede acceder?',['Sí, ya ingresé','Sigue bloqueado']]
+]},
+code:{title:'Código de verificación',steps:[
+['¿Cómo espera recibir el código?',['SMS','Correo electrónico','No lo sé']],
+['Compruebe que tiene señal o internet. Si es correo, revise también Spam/No deseados. ¿Encontró el código?',['Sí, lo encontré','Todavía no']],
+['Espere el tiempo indicado en pantalla y use «Reenviar código» solo una vez, si está disponible. Use únicamente el código más reciente y no lo comparta aquí. ¿Llegó?',['Sí, llegó','No llegó']],
+['Compruebe que el teléfono tenga fecha y hora automáticas y que no esté en modo avión. Regrese a la pantalla de verificación. ¿Se resolvió?',['Sí, resuelto','No, sigue igual']]
+]},
+loading:{title:'La aplicación no carga',steps:[
+['¿Qué sucede cuando intenta abrirla?',['Pantalla en blanco','Se queda cargando','Se cierra sola']],
+['Abra otra página de internet para comprobar la conexión. Si falla, cambie entre Wi-Fi y datos móviles. ¿Ahora carga?',['Sí, funciona','Sigue sin cargar']],
+['Cierre completamente CAYCSOL Móvil y ábrala de nuevo. No borre datos ni desinstale todavía. ¿Se solucionó?',['Sí, funciona','Sigue fallando']],
+['Reinicie el celular, revise si hay una actualización oficial de la aplicación y asegúrese de tener espacio disponible. ¿Ahora funciona?',['Sí, funciona','No funciona']]
+]},
+other:{title:'Otro inconveniente',steps:[
+['¿Con qué servicio necesita ayuda?',['Inicio de sesión','Transferencias / ACH','UNIRED','Préstamos','Otro']],
+['Revise el mensaje que aparece y confirme que tiene conexión. No repita operaciones financieras si desconoce su estado. ¿El problema se relaciona con un acceso bloqueado o con un error de carga?',['Acceso bloqueado','Error de carga','Ninguno']],
+['Cierre y vuelva a abrir la sección. Si la operación parece pendiente, consulte primero su historial antes de intentar de nuevo. ¿Se solucionó?',['Sí, resuelto','No, continúa']]
+]}
+};
+let flow=null,step=0,answers=[],awaitingResult=false;
+function log(t,mine){const e=document.createElement('div');e.className='landing-help-message'+(mine?' mine':'');e.textContent=t;const l=document.getElementById('landing-help-log');l.appendChild(e);l.scrollTop=l.scrollHeight}
+function options(arr){const box=document.getElementById('landing-help-quick');box.replaceChildren();arr.forEach(t=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.addEventListener('click',()=>window.landingHelpAsk(t));box.appendChild(b)})}
+const menu=()=>options(['Olvidé mi contraseña','Usuario bloqueado','No recibo el código','La app no carga','Otro problema','Asesor']);
+function wa(){const a=document.createElement('a');a.href='https://wa.me/50432283197?text='+encodeURIComponent('Hola, necesito soporte técnico de CAYCSOL Móvil. El asistente me guió, pero el problema continúa.');a.target='_blank';a.rel='noopener noreferrer';a.textContent='Contactar soporte Juticalpa por WhatsApp';a.style.cssText='display:block;margin:9px 12px 15px;padding:13px;border-radius:10px;background:#008d4f;color:white;text-decoration:none;font-weight:bold;text-align:center';document.getElementById('landing-help-log').appendChild(a)}
+function askStep(){const item=flows[flow].steps[step];log(item[0],false);options([...item[1],'Volver al menú'])}
+function finish(){awaitingResult=true;log('¿El problema quedó resuelto?',false);options(['Sí, solucionado','No, necesito más ayuda','Volver al menú'])}
+function start(k){flow=k;step=0;answers=[];awaitingResult=false;log('Vamos a revisar: '+flows[k].title+'. Le guiaré paso a paso. Esta es una demostración académica: no escriba aquí contraseñas, PIN, códigos de verificación ni datos personales.',false);askStep()}
+window.landingHelpToggle=function(force){const p=document.getElementById('landing-help-panel');p.classList.toggle('open',typeof force==='boolean'?force:!p.classList.contains('open'))};
+window.landingHelpAsk=function(raw){const q=String(raw||'').trim();if(!q)return;log(q,true);const s=normalize(q);
+if(/volver al menu|menu principal|reiniciar chat/.test(s)){flow=null;awaitingResult=false;log('¿En qué más puedo ayudarle?',false);menu();return}
+if(/si, solucionado|si, resuelto|si, funciona|si, ya ingrese/.test(s)&&flow){flow=null;awaitingResult=false;log('¡Excelente! Me alegra que haya podido continuar. ¿Necesita ayuda con algo más?',false);menu();return}
+if(/no, necesito mas ayuda/.test(s)){flow=null;awaitingResult=false;log('Ya realizamos las comprobaciones básicas. Para proteger su cuenta, no intentaré cambiar credenciales desde este chat. Si desea atención adicional, puede usar el contacto de Juticalpa.',false);wa();menu();return}
+if(/asesor|whatsapp|contacto/.test(s)){flow=null;log('Para Juticalpa, el contacto configurado es 3228-3197. El asistente seguirá disponible para orientarle antes de contactar.',false);wa();menu();return}
+if(flow){
+if(awaitingResult){log('¿Desea que le muestre las opciones de asistencia o volver al menú?',false);options(['No, necesito más ayuda','Volver al menú']);return}
+answers.push(q);
+const yes= /^(si|sí)(,|$)/.test(s);
+const success=/ya ingrese|funciona|resuelto|solucionado|encontre el codigo|llego/.test(s);
+if(yes&&success){finish();return}
+const negative=/no aparece|no pude|no me permitio|sigue bloqueado|sigue fallando|no funciona|sigue sin cargar|no llego|todavia no|no, continua/.test(s);
+step++;
+if(step<flows[flow].steps.length){if(negative)log('Entiendo. Probemos la siguiente comprobación.',false);askStep()}else finish();
+return}
+if(/olvide|contrasena|clave|vencid/.test(s)){start('password');return}
+if(/bloquead|desbloque/.test(s)){start('blocked');return}
+if(/codigo|verificacion|sms|token/.test(s)){start('code');return}
+if(/no carga|no abre|pantalla en blanco|se cierra|cargando|error de conexion/.test(s)){start('loading');return}
+if(/otro problema|otro inconveniente|problema diferente/.test(s)){start('other');return}
+
+if(/unired/.test(s))log('En la banca digital de demostración, abra UNIRED, seleccione el tipo de operación y revise cuidadosamente el resumen antes de confirmar. Las operaciones son simuladas.',false);
+else if(/transfer|ach/.test(s))log('Abra Transferir, seleccione ACH y complete los campos de la demostración. Si una transferencia real parece pendiente, no la repita antes de revisar su estado.',false);
+else if(/prestamo|credito|pago/.test(s))log('En la banca digital, abra Pagos o Préstamos para consultar las opciones simuladas.',false);
+else if(/beneficio|afili|ahorro/.test(s))log('CAYCSOL ofrece productos de ahorro y financiamiento. Para condiciones vigentes, consulte la información oficial de la cooperativa.',false);
+else log('Puedo ayudarle paso a paso con contraseña olvidada, usuario bloqueado, códigos que no llegan, aplicación que no carga y otros problemas. Elija una opción.',false);
+menu()};
+function visibility(){const landing=document.getElementById('landing');const widget=document.getElementById('landing-chatbot');if(!landing||!widget)return;const visible=getComputedStyle(landing).display!=='none'&&!landing.classList.contains('hidden');widget.style.display=visible?'block':'none';if(!visible)document.getElementById('landing-help-panel').classList.remove('open')}
+const landing=document.getElementById('landing');if(landing)new MutationObserver(visibility).observe(landing,{attributes:true,attributeFilter:['class','style']});visibility();menu();
+})();
+</script><script>landingHelpToggle(true)</script></body></html>
