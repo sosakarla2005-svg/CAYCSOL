@@ -294,26 +294,36 @@ other:{title:'Otro inconveniente',steps:[
 ['Cierre y vuelva a abrir la sección. Si la operación parece pendiente, consulte primero su historial antes de intentar de nuevo. ¿Se solucionó?',['Sí, resuelto','No, continúa']]
 ]}
 };
-let flow=null,step=0,answers=[];
+let flow=null,step=0,answers=[],awaitingResult=false;
 function log(t,mine){const e=document.createElement('div');e.className='landing-help-message'+(mine?' mine':'');e.textContent=t;const l=document.getElementById('landing-help-log');l.appendChild(e);l.scrollTop=l.scrollHeight}
 function options(arr){const box=document.getElementById('landing-help-quick');box.replaceChildren();arr.forEach(t=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.addEventListener('click',()=>window.landingHelpAsk(t));box.appendChild(b)})}
 const menu=()=>options(['Olvidé mi contraseña','Usuario bloqueado','No recibo el código','La app no carga','Otro problema','Asesor']);
 function wa(){const a=document.createElement('a');a.href='https://wa.me/50432283197?text='+encodeURIComponent('Hola, necesito soporte técnico de CAYCSOL Móvil. El asistente me guió, pero el problema continúa.');a.target='_blank';a.rel='noopener noreferrer';a.textContent='Contactar soporte Juticalpa por WhatsApp';a.style.cssText='display:block;margin:9px 12px 15px;padding:13px;border-radius:10px;background:#008d4f;color:white;text-decoration:none;font-weight:bold;text-align:center';document.getElementById('landing-help-log').appendChild(a)}
 function askStep(){const item=flows[flow].steps[step];log(item[0],false);options([...item[1],'Volver al menú'])}
-function finish(){log('¿El problema quedó resuelto?',false);options(['Sí, solucionado','No, necesito más ayuda','Volver al menú'])}
-function start(k){flow=k;step=0;answers=[];log('Vamos a revisar: '+flows[k].title+'. Le guiaré paso a paso. Esta es una demostración académica: no escriba aquí contraseñas, PIN, códigos de verificación ni datos personales.',false);askStep()}
+function finish(){awaitingResult=true;log('¿El problema quedó resuelto?',false);options(['Sí, solucionado','No, necesito más ayuda','Volver al menú'])}
+function start(k){flow=k;step=0;answers=[];awaitingResult=false;log('Vamos a revisar: '+flows[k].title+'. Le guiaré paso a paso. Esta es una demostración académica: no escriba aquí contraseñas, PIN, códigos de verificación ni datos personales.',false);askStep()}
 window.landingHelpToggle=function(force){const p=document.getElementById('landing-help-panel');p.classList.toggle('open',typeof force==='boolean'?force:!p.classList.contains('open'))};
 window.landingHelpAsk=function(raw){const q=String(raw||'').trim();if(!q)return;log(q,true);const s=normalize(q);
-if(/volver al menu|menu principal|reiniciar chat/.test(s)){flow=null;log('¿En qué más puedo ayudarle?',false);menu();return}
-if(/si, solucionado|si, resuelto|si, funciona|si, ya ingrese/.test(s)&&flow){flow=null;log('¡Excelente! Me alegra que haya podido continuar. ¿Necesita ayuda con algo más?',false);menu();return}
-if(/no, necesito mas ayuda/.test(s)){flow=null;log('Ya realizamos las comprobaciones básicas. Para proteger su cuenta, no intentaré cambiar credenciales desde este chat. Si desea atención adicional, puede usar el contacto de Juticalpa.',false);wa();menu();return}
+if(/volver al menu|menu principal|reiniciar chat/.test(s)){flow=null;awaitingResult=false;log('¿En qué más puedo ayudarle?',false);menu();return}
+if(/si, solucionado|si, resuelto|si, funciona|si, ya ingrese/.test(s)&&flow){flow=null;awaitingResult=false;log('¡Excelente! Me alegra que haya podido continuar. ¿Necesita ayuda con algo más?',false);menu();return}
+if(/no, necesito mas ayuda/.test(s)){flow=null;awaitingResult=false;log('Ya realizamos las comprobaciones básicas. Para proteger su cuenta, no intentaré cambiar credenciales desde este chat. Si desea atención adicional, puede usar el contacto de Juticalpa.',false);wa();menu();return}
 if(/asesor|whatsapp|contacto/.test(s)){flow=null;log('Para Juticalpa, el contacto configurado es 3228-3197. El asistente seguirá disponible para orientarle antes de contactar.',false);wa();menu();return}
+if(flow){
+if(awaitingResult){log('¿Desea que le muestre las opciones de asistencia o volver al menú?',false);options(['No, necesito más ayuda','Volver al menú']);return}
+answers.push(q);
+const yes= /^(si|sí)(,|$)/.test(s);
+const success=/ya ingrese|funciona|resuelto|solucionado|encontre el codigo|llego/.test(s);
+if(yes&&success){finish();return}
+const negative=/no aparece|no pude|no me permitio|sigue bloqueado|sigue fallando|no funciona|sigue sin cargar|no llego|todavia no|no, continua/.test(s);
+step++;
+if(step<flows[flow].steps.length){if(negative)log('Entiendo. Probemos la siguiente comprobación.',false);askStep()}else finish();
+return}
 if(/olvide|contrasena|clave|vencid/.test(s)){start('password');return}
 if(/bloquead|desbloque/.test(s)){start('blocked');return}
 if(/codigo|verificacion|sms|token/.test(s)){start('code');return}
 if(/no carga|no abre|pantalla en blanco|se cierra|cargando|error de conexion/.test(s)){start('loading');return}
 if(/otro problema|otro inconveniente|problema diferente/.test(s)){start('other');return}
-if(flow){answers.push(q);const negative=/no aparece|no pude|no me permitio|sigue bloqueado|sigue fallando|no funciona|sigue sin cargar|no llego|todavia no|no, continua/.test(s);step++;if(step<flows[flow].steps.length){if(negative)log('Entiendo. Probemos la siguiente comprobación.',false);askStep()}else finish();return}
+
 if(/unired/.test(s))log('En la banca digital de demostración, abra UNIRED, seleccione el tipo de operación y revise cuidadosamente el resumen antes de confirmar. Las operaciones son simuladas.',false);
 else if(/transfer|ach/.test(s))log('Abra Transferir, seleccione ACH y complete los campos de la demostración. Si una transferencia real parece pendiente, no la repita antes de revisar su estado.',false);
 else if(/prestamo|credito|pago/.test(s))log('En la banca digital, abra Pagos o Préstamos para consultar las opciones simuladas.',false);
